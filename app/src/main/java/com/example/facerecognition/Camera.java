@@ -7,6 +7,7 @@ import androidx.core.app.ActivityCompat;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -16,14 +17,20 @@ import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
+import android.view.View;
+import android.widget.Toast;
 
-import org.w3c.dom.Text;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Collections;
 
 public class Camera extends AppCompatActivity {
@@ -41,6 +48,7 @@ public class Camera extends AppCompatActivity {
     private CameraCaptureSession cameraCaptureSession;
     private CaptureRequest.Builder captureRequestBuilder;
     private CaptureRequest captureRequest;
+    private File galleryDir;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,8 +56,15 @@ public class Camera extends AppCompatActivity {
         setContentView(R.layout.activity_camera);
 
         textureView = (TextureView) findViewById(R.id.texture_view);
+        FloatingActionButton fab = findViewById(R.id.take_photo_button);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                takePhoto();
+            }
+        });
 
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_REQUEST_CODE);
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, CAMERA_REQUEST_CODE);
 
         cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         cameraFacing = CameraCharacteristics.LENS_FACING_BACK;
@@ -59,6 +74,7 @@ public class Camera extends AppCompatActivity {
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                 setUpCamera();
                 openCamera();
+                createImageDirectory();
             }
 
             @Override
@@ -133,6 +149,10 @@ public class Camera extends AppCompatActivity {
         catch (CameraAccessException e) {
             e.printStackTrace();
         }
+        catch (NullPointerException npe) {
+            Toast camera_ava = Toast.makeText(getApplicationContext(), "No Cameras available", Toast.LENGTH_SHORT);
+            camera_ava.show();
+        }
     }
 
     private void openCamera() {
@@ -187,8 +207,7 @@ public class Camera extends AppCompatActivity {
                                 captureRequest = captureRequestBuilder.build();
                                 cameraCaptureSession = session;
                                 cameraCaptureSession.setRepeatingRequest(captureRequest, null, backgroundHandler);
-                            }
-                            catch (CameraAccessException cae) {
+                            } catch (CameraAccessException cae) {
                                 cae.printStackTrace();
                             }
                         }
@@ -198,9 +217,73 @@ public class Camera extends AppCompatActivity {
 
                         }
                     }, backgroundHandler);
+        } catch (CameraAccessException cae) {
+            cae.printStackTrace();
+        }
+    }
+
+    private void createImageDirectory() {
+        Toast cImageDir;
+        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+            File storeDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+            galleryDir = new File(storeDir, getResources().getString(R.string.app_name));
+
+            if (!galleryDir.exists()) {
+                boolean dirExists = galleryDir.mkdirs();
+                if (!dirExists) {
+                    cImageDir = Toast.makeText(getApplicationContext(),"Can not create directory on data storage. Images can not be saved", Toast.LENGTH_LONG);
+                    cImageDir.show();
+                }
+            }
+        }
+        else {
+            cImageDir = Toast.makeText(getApplicationContext(),"No permissions to write to data storage. Images can not be saved", Toast.LENGTH_LONG);
+            cImageDir.show();
+        }
+    }
+
+    private File createImageFile(File imgDir) throws IOException {
+        String imageFileName = "frc_img";
+        return File.createTempFile(imageFileName, ".png", imgDir);
+    }
+
+    private void lock_preview() {
+        try {
+            cameraCaptureSession.capture(captureRequestBuilder.build(), null, backgroundHandler);
+
         }
         catch (CameraAccessException cae) {
             cae.printStackTrace();
+        }
+    }
+
+    private void unlock_preview() {
+        try {
+            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
+        } catch (CameraAccessException cae) {
+            cae.printStackTrace();
+        }
+    }
+
+    public void takePhoto() {
+        FileOutputStream photo_output = null;
+        lock_preview();
+        try {
+            photo_output = new FileOutputStream(createImageFile(galleryDir));
+            textureView.getBitmap().compress(Bitmap.CompressFormat.PNG, 100, photo_output);
+        }
+        catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
+        finally {
+            unlock_preview();
+            try {
+                if (photo_output != null) {
+                    photo_output.close();
+                }
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+            }
         }
     }
 }

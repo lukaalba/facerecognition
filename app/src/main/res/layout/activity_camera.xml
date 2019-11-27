@@ -11,14 +11,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-<!--    <android.support.design.widget.FloationActionButton-->
-<!--        android:id="@+id/take_photo_button"-->
-<!--        android:layout_width="56dp"-->
-<!--        android:layout_height="56dp"-->
-<!--        android:layout_alignParentBottom="true"-->
-<!--        android:layout_centerHorizontal="true"-->
-<!--        android:layout_marginBottom="240dp"-->
-<!--        android:src="@drawable/ic_camera"-->
-<!--        app:backgroundTint="@color/colorPrimary" />-->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/take_photo_button"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="24dp"
+        android:src="@drawable/ic_camera"
+        app:backgroundTint="@color/colorPrimary" />
 
 </RelativeLayout>
